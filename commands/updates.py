@@ -48,7 +48,8 @@ class Update(commands.Cog):
                 "- **Slap Command**: Send a slap GIF to a user.\n"
                 "- **Gay Percentage**: Randomly rate how much gay someone is.\n"
                 "- **Ping**: Check the bot's latency.\n"
-                "- **Magic 8-Ball**: Ask any question and get a random answer."
+                "- **Magic 8-Ball**: Ask any question and get a random answer.\n"
+                "- **Rock-Paper-Scissors**: Play a game of Rock-Paper-Scissors against the bot.\n"
             ),
             inline=False
         )

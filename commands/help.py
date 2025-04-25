@@ -22,6 +22,11 @@ class HelpCog(commands.Cog):
             inline=False
         )
         embed.add_field(
+            name="Rock Paper-Scissors",
+            value="```/rps <rock|paper|scissors>```",
+            inline=False
+        )
+        embed.add_field(
             name="Check Account Age",
             value=f"```{prefix}helpage```",
             inline=False
@@ -69,6 +74,11 @@ class HelpCog(commands.Cog):
         embed.add_field(
             name="Ask the Magic 8-Ball",
             value="```/8ball <question>```",
+            inline=False
+        )
+        embed.add_field(
+            name="Rock Paper-Scissors",
+            value="```/rps <rock|paper|scissors>```",
             inline=False
         )
         embed.add_field(
