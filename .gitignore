@@ -1,0 +1,7 @@
+myenv
+bots
+pycache
+__pycache__
+*.pyc
+*.zip
+*.env
