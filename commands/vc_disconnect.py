@@ -29,7 +29,6 @@ class Disconnect(commands.Cog):
                 await member.move_to(None)
                 await interaction.followup.send(
                     f"✅ {member.mention} has been disconnected from the voice channel.",
-                    ephemeral=True
                 )
             except discord.Forbidden:
                 await interaction.followup.send(

@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands, Interaction
 import random
+from typing import Literal
 
 class RockPaperScissors(commands.Cog):
     """Simple Rock-Paper-Scissors game."""
@@ -48,15 +49,9 @@ class RockPaperScissors(commands.Cog):
         await ctx.send(embed=embed)
 
     @app_commands.command(name="rps", description="Play Rock-Paper-Scissors against the bot.")
-    async def rps_slash(self, interaction: Interaction, choice: str):
+    async def rps_slash(self, interaction: Interaction, choice: Literal["rock", "paper", "scissors"]):
         """Slash command: /rps <choice>"""
         user_choice = choice.lower()
-        if user_choice not in self.OPTIONS:
-            await interaction.response.send_message(
-                f"Invalid choice! Choose one of: {', '.join(self.OPTIONS)}.", ephemeral=True
-            )
-            return
-
         bot_choice = random.choice(self.OPTIONS)
         result = self._decide_winner(user_choice, bot_choice)
 
@@ -75,7 +70,6 @@ class RockPaperScissors(commands.Cog):
             embed.color = discord.Color.red()
 
         embed.description = desc
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-
+        await interaction.response.send_message(embed=embed)
 async def setup(bot: commands.Bot):
     await bot.add_cog(RockPaperScissors(bot))

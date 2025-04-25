@@ -39,7 +39,7 @@ class RoleManager(commands.Cog):
                 f"❌ You need a higher role to assign `{role_name}`.", ephemeral=True
             )
         await user.add_roles(role)
-        await interaction.response.send_message(f"✅ Assigned `{role_name}` to {user.mention}.", ephemeral=True)
+        await interaction.response.send_message(f"✅ Assigned `{role_name}` to {user.mention}.")
 
     @commands.command(name="removerole")
     @commands.has_permissions(manage_roles=True)
@@ -70,7 +70,7 @@ class RoleManager(commands.Cog):
                 f"❌ You need a higher role to remove `{role_name}`.", ephemeral=True
             )
         await user.remove_roles(role)
-        await interaction.response.send_message(f"✅ Removed `{role_name}` from {user.mention}.", ephemeral=True)
+        await interaction.response.send_message(f"✅ Removed `{role_name}` from {user.mention}.")
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(RoleManager(bot))

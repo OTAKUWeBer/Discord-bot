@@ -33,7 +33,7 @@ class EightBall(commands.Cog):
         embed = discord.Embed(title="🎱 Magic 8-Ball", color=discord.Color.purple())
         embed.add_field(name="Question", value=question, inline=False)
         embed.add_field(name="Answer", value=answer, inline=False)
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(EightBall(bot))
