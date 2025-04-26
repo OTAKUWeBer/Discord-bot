@@ -68,6 +68,11 @@ class HelpCog(commands.Cog):
         )
         await ctx.send(embed=embed)
 
+    @commands.command(name="ping")
+    async def ping(self, ctx: commands.Context):
+        latency = round(self.bot.latency * 1000)  # Convert to milliseconds
+        await ctx.send(f"🏓 Pong! Latency is `{latency}ms`.")
+
     @app_commands.command(name="help", description="Show available commands")
     async def help_slash(self, interaction: Interaction):
         """Slash command: /help - List available commands"""
@@ -127,6 +132,12 @@ class HelpCog(commands.Cog):
             inline=False
         )
         await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="ping", description="Check the bot's latency")
+    async def ping_slash(self, interaction: Interaction):
+        """Slash command: /ping - Check bot latency"""
+        latency = round(self.bot.latency * 1000)  # Convert to milliseconds
+        await interaction.response.send_message(f"🏓 Pong! Latency is `{latency}ms`.", ephemeral=True)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(HelpCog(bot))
