@@ -9,14 +9,9 @@ class Update(commands.Cog):
 
     # Define this as a class-level or instance-level constant
     FEATURE_TEXT = (
-        "- **Disconnect from Voice Channel**: Disconnect users from voice channels.\n"
-        "- **Role Management**: Add or remove roles using the new commands.\n"
-        "- **Slash Commands**: Use the `/` (slash) commands for enhanced functionality.\n"
-        "- **Slap Command**: Send a slap GIF to a user.\n"
-        "- **Gay Percentage**: Randomly rate how much gay someone is.\n"
-        "- **Ping**: Check the bot's latency.\n"
         "- **Magic 8-Ball**: Ask any question and get a random answer.\n"
         "- **Rock-Paper-Scissors**: Play a game of Rock-Paper-Scissors against the bot.\n"
+        "- **Play Song**: Play music from YouTube or search by song name using a command or slash.\n"
     )
 
     @commands.command(name="updates")

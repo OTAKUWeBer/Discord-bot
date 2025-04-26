@@ -32,6 +32,11 @@ class HelpCog(commands.Cog):
             inline=False
         )
         embed.add_field(
+            name="Check music commands",
+            value=f"```{prefix}/music_help```",
+            inline=False
+        )
+        embed.add_field(
             name="Check How Much Gay (Random)",
             value=f"```{prefix}howmuchgay @username```",
             inline=False
@@ -84,6 +89,11 @@ class HelpCog(commands.Cog):
         embed.add_field(
             name="Check Account Age",
             value="```/helpage```",
+            inline=False
+        )
+        embed.add_field(
+            name="Check music commands",
+            value="```/music_help```",
             inline=False
         )
         embed.add_field(
