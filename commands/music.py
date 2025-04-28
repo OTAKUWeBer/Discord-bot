@@ -37,6 +37,7 @@ class Music(commands.Cog):
         self.voice_client: discord.VoiceClient | None = None
         self.text_channel: discord.TextChannel | None = None
         self.auto_disconnect_task: asyncio.Task | None = None
+        self.skipped = False
 
     async def get_ytdl_info(self, query: str) -> dict:
         """Asynchronously extract info using yt_dlp in a threadpool."""
@@ -56,20 +57,25 @@ class Music(commands.Cog):
         if error:
             print(f"Player error: {error}")
 
-        # announce the track that just finished
-        if self.current and self.text_channel:
-            await self.text_channel.send(
-                f"✅ Finished playing: **{self.current['title']}**"
+        # Only show finished message if not skipped
+        if self.current and self.text_channel and not self.skipped:
+            embed = discord.Embed(
+                description=f"✅ Finished playing: [{self.current['title']}]({self.current['webpage_url']})",
+                color=discord.Color.green()
             )
+            await self.text_channel.send(embed=embed)
+        self.skipped = False
 
-        # New song msg
         if self.queue:
             self.current = self.queue.pop(0)
             self.current['start_time'] = self.bot.loop.time()
 
-            await self.text_channel.send(
-                f"▶️ Now playing: **{self.current['title']}**"
+            embed = discord.Embed(
+                title="🎶 Now Playing",
+                description=f"[{self.current['title']}]({self.current['webpage_url']})",
+                color=discord.Color.blue()
             )
+            await self.text_channel.send(embed=embed)
 
             source = discord.FFmpegPCMAudio(
                 self.current['url'],
@@ -85,6 +91,12 @@ class Music(commands.Cog):
             )
         else:
             self.current = None
+            if self.text_channel:
+                embed = discord.Embed(
+                    description="⏹️ No more tracks in the queue",
+                    color=discord.Color.dark_grey()
+                )
+                await self.text_channel.send(embed=embed)
 
     async def join_user_vc(self, user) -> discord.VoiceClient | None:
         voice_state = user.voice
@@ -132,7 +144,7 @@ class Music(commands.Cog):
     @commands.command(name="music_help", help="Show list of music commands and their usage")
     async def music_help(self, ctx: commands.Context):
         prefix = ctx.prefix
-        embed = discord.Embed(title="Music Commands", color=discord.Color.blue())
+        embed = discord.Embed(title="🎵 Music Commands", color=discord.Color.blue())
         embed.add_field(name="Play", value=f"```{prefix}play <song name or URL>```", inline=False)
         embed.add_field(name="Skip", value=f"```{prefix}skip```", inline=False)
         embed.add_field(name="Pause", value=f"```{prefix}pause```", inline=False)
@@ -144,7 +156,7 @@ class Music(commands.Cog):
 
     @app_commands.command(name="music_help", description="Show music commands")
     async def music_slash(self, interaction: Interaction):
-        embed = discord.Embed(title="Music Commands", color=discord.Color.blue())
+        embed = discord.Embed(title="🎵 Music Commands", color=discord.Color.blue())
         embed.add_field(name="/play", value="Play music from YouTube URL or search by song name", inline=False)
         embed.add_field(name="/skip", value="Skip current song", inline=False)
         embed.add_field(name="/pause", value="Pause the currently playing song", inline=False)
@@ -162,7 +174,6 @@ class Music(commands.Cog):
         if not vc:
             return await ctx.send("You aren't in any voice channel!")
 
-        # show typing indicator while searching
         async with ctx.typing():
             info = await self.get_ytdl_info(query)
 
@@ -173,16 +184,20 @@ class Music(commands.Cog):
             'webpage_url': info.get('webpage_url', info.get('url'))
         }
         self.queue.append(song)
-        self.text_channel = ctx.channel  # where to send finish notifications
+        self.text_channel = ctx.channel
+
+        embed = discord.Embed(
+            description=f"➕ Added to queue: [{song['title']}]({song['webpage_url']})",
+            color=discord.Color.green()
+        )
 
         if not vc.is_playing():
             asyncio.run_coroutine_threadsafe(
                 self._play_next(None),
                 self.bot.loop
             )
-            # initial "Now playing" will be sent by _play_next
         else:
-            await ctx.send(f"➕ Added to queue: **{song['title']}**")
+            await ctx.send(embed=embed)
 
     @app_commands.command(name="play", description="Play music from YouTube URL or song name")
     async def play_slash(self, interaction: Interaction, *, query: str):
@@ -201,14 +216,19 @@ class Music(commands.Cog):
         self.queue.append(song)
         self.text_channel = interaction.channel  # type: ignore
 
+        embed = discord.Embed(
+            description=f"➕ Added to queue: [{song['title']}]({song['webpage_url']})",
+            color=discord.Color.green()
+        )
+
         if not vc.is_playing():
             asyncio.run_coroutine_threadsafe(
                 self._play_next(None),
                 self.bot.loop
             )
-            # initial "Now playing" will be sent by _play_next
+            await interaction.followup.send(embed=embed)
         else:
-            await interaction.followup.send(f"➕ Added to queue: **{song['title']}**")
+            await interaction.followup.send(embed=embed)
 
     # ─── SKIP ────────────────────────────────────────────────────────────────────
 
@@ -217,16 +237,26 @@ class Music(commands.Cog):
         if not ctx.author.voice or not ctx.author.voice.channel:
             return await ctx.send("You aren't in any voice channel!")
         if self.voice_client and self.voice_client.is_playing():
+            self.skipped = True
             self.voice_client.stop()
-            await ctx.send("⏭️ Song skipped!")
+            embed = discord.Embed(
+                description="⏭️ Song skipped!",
+                color=discord.Color.orange()
+            )
+            await ctx.send(embed=embed)
 
     @app_commands.command(name="skip", description="Skip current song")
     async def skip_slash(self, interaction: Interaction):
         if not interaction.user.voice or not interaction.user.voice.channel:
             return await interaction.response.send_message("You aren't in any voice channel!", ephemeral=True)
         if self.voice_client and self.voice_client.is_playing():
+            self.skipped = True
             self.voice_client.stop()
-            await interaction.response.send_message("⏭️ Song skipped!")
+            embed = discord.Embed(
+                description="⏭️ Song skipped!",
+                color=discord.Color.orange()
+            )
+            await interaction.response.send_message(embed=embed)
 
     # ─── PAUSE & RESUME ─────────────────────────────────────────────────────────
 
@@ -235,28 +265,44 @@ class Music(commands.Cog):
         if not self.voice_client or not self.voice_client.is_playing():
             return await ctx.send("Nothing is playing right now.")
         self.voice_client.pause()
-        await ctx.send("⏸️ Music paused.")
+        embed = discord.Embed(
+            description="⏸️ Music paused",
+            color=discord.Color.gold()
+        )
+        await ctx.send(embed=embed)
 
     @app_commands.command(name="pause", description="Pause the currently playing song")
     async def pause_slash(self, interaction: Interaction):
         if not self.voice_client or not self.voice_client.is_playing():
             return await interaction.response.send_message("Nothing is playing right now.", ephemeral=True)
         self.voice_client.pause()
-        await interaction.response.send_message("⏸️ Music paused.")
+        embed = discord.Embed(
+            description="⏸️ Music paused",
+            color=discord.Color.gold()
+        )
+        await interaction.response.send_message(embed=embed)
 
     @commands.command(name="resume", help="Resume a paused song")
     async def resume(self, ctx: commands.Context):
         if not self.voice_client or not self.voice_client.is_paused():
             return await ctx.send("No track is paused.")
         self.voice_client.resume()
-        await ctx.send("▶️ Music resumed.")
+        embed = discord.Embed(
+            description="▶️ Music resumed",
+            color=discord.Color.blue()
+        )
+        await ctx.send(embed=embed)
 
     @app_commands.command(name="resume", description="Resume a paused song")
     async def resume_slash(self, interaction: Interaction):
         if not self.voice_client or not self.voice_client.is_paused():
             return await interaction.response.send_message("No track is paused.", ephemeral=True)
         self.voice_client.resume()
-        await interaction.response.send_message("▶️ Music resumed.")
+        embed = discord.Embed(
+            description="▶️ Music resumed",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed)
 
     # ─── STOP ────────────────────────────────────────────────────────────────────
 
@@ -270,7 +316,11 @@ class Music(commands.Cog):
             await self.voice_client.disconnect()
             if self.auto_disconnect_task:
                 self.auto_disconnect_task.cancel()
-            await ctx.send("⏹️ Music stopped!")
+            embed = discord.Embed(
+                description="⏹️ Music stopped and queue cleared",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed)
 
     @app_commands.command(name="stop", description="Stop music and clear queue")
     async def stop_slash(self, interaction: Interaction):
@@ -282,36 +332,48 @@ class Music(commands.Cog):
             await self.voice_client.disconnect()
             if self.auto_disconnect_task:
                 self.auto_disconnect_task.cancel()
-            await interaction.response.send_message("⏹️ Music stopped!")
+            embed = discord.Embed(
+                description="⏹️ Music stopped and queue cleared",
+                color=discord.Color.red()
+            )
+            await interaction.response.send_message(embed=embed)
 
     # ─── QUEUE ───────────────────────────────────────────────────────────────────
 
     @commands.command(name="queue", help="Show current music queue")
     async def show_queue(self, ctx: commands.Context):
-        embed = discord.Embed(title="Music Queue", color=discord.Color.blurple())
+        embed = discord.Embed(title="🎶 Music Queue", color=discord.Color.blurple())
         if self.current:
-            embed.add_field(name="Now Playing", value=self.current['title'], inline=False)
-        if self.queue:
             embed.add_field(
-                name="Up Next",
-                value="\n".join(f"{i+1}. {song['title']}" for i, song in enumerate(self.queue)),
+                name="Now Playing",
+                value=f"[{self.current['title']}]({self.current['webpage_url']})",
                 inline=False
             )
+        if self.queue:
+            queue_list = "\n".join(
+                f"{i+1}. [{song['title']}]({song['webpage_url']})" 
+                for i, song in enumerate(self.queue)
+            )
+            embed.add_field(name="Up Next", value=queue_list, inline=False)
         else:
             embed.add_field(name="Up Next", value="Queue is empty", inline=False)
         await ctx.send(embed=embed)
 
     @app_commands.command(name="queue", description="Show current music queue")
     async def queue_slash(self, interaction: Interaction):
-        embed = discord.Embed(title="Music Queue", color=discord.Color.blurple())
+        embed = discord.Embed(title="🎶 Music Queue", color=discord.Color.blurple())
         if self.current:
-            embed.add_field(name="Now Playing", value=self.current['title'], inline=False)
-        if self.queue:
             embed.add_field(
-                name="Up Next",
-                value="\n".join(f"{i+1}. {song['title']}" for i, song in enumerate(self.queue)),
+                name="Now Playing",
+                value=f"[{self.current['title']}]({self.current['webpage_url']})",
                 inline=False
             )
+        if self.queue:
+            queue_list = "\n".join(
+                f"{i+1}. [{song['title']}]({song['webpage_url']})" 
+                for i, song in enumerate(self.queue)
+            )
+            embed.add_field(name="Up Next", value=queue_list, inline=False)
         else:
             embed.add_field(name="Up Next", value="Queue is empty", inline=False)
         await interaction.response.send_message(embed=embed)
@@ -321,7 +383,11 @@ class Music(commands.Cog):
     @commands.command(name="rn", help="Show current song progress")
     async def rn(self, ctx: commands.Context):
         if not self.current or 'start_time' not in self.current:
-            return await ctx.send("❌ No song is currently playing.")
+            embed = discord.Embed(
+                description="❌ No song is currently playing",
+                color=discord.Color.red()
+            )
+            return await ctx.send(embed=embed)
 
         now = self.bot.loop.time()
         elapsed = now - self.current['start_time']
@@ -336,12 +402,17 @@ class Music(commands.Cog):
             m, s = divmod(int(sec), 60)
             return f"{m:02d}:{s:02d}"
 
-        title = self.current['title']
-        url   = self.current['webpage_url']
-        await ctx.send(
-            f"**[{title}]({url})**\n"
-            f"{fmt(elapsed)} {bar} {fmt(total)}"
+        embed = discord.Embed(
+            title="🎶 Now Playing",
+            description=f"[{self.current['title']}]({self.current['webpage_url']})",
+            color=discord.Color.blue()
         )
+        embed.add_field(
+            name="Progress",
+            value=f"{fmt(elapsed)} {bar} {fmt(total)}",
+            inline=False
+        )
+        await ctx.send(embed=embed)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Music(bot))
