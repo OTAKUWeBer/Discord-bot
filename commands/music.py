@@ -52,15 +52,14 @@ class Music(commands.Cog):
             info = info['entries'][0]
         return info
 
-    def _play_next(self, error: Exception | None = None) -> None:
+    async def _play_next(self, error: Exception | None = None):
         if error:
             print(f"Player error: {error}")
 
         # announce the track that just finished
         if self.current and self.text_channel:
-            asyncio.run_coroutine_threadsafe(
-                self.text_channel.send(f"✅ Finished playing: **{self.current['title']}**"),
-                self.bot.loop
+            await self.text_channel.send(
+                f"✅ Finished playing: **{self.current['title']}**"
             )
 
         # New song msg
@@ -68,16 +67,21 @@ class Music(commands.Cog):
             self.current = self.queue.pop(0)
             self.current['start_time'] = self.bot.loop.time()
 
-            # new track
-            asyncio.run_coroutine_threadsafe(
-                self.text_channel.send(f"▶️ Now playing: **{self.current['title']}**"),
-                self.bot.loop
+            await self.text_channel.send(
+                f"▶️ Now playing: **{self.current['title']}**"
             )
 
-            source = discord.FFmpegPCMAudio(self.current['url'], **FFMPEG_OPTIONS)
+            source = discord.FFmpegPCMAudio(
+                self.current['url'],
+                **FFMPEG_OPTIONS
+            )
             self.voice_client.play(
                 source,
-                after=lambda e: self.bot.loop.call_soon_threadsafe(self._play_next, e)
+                after=lambda e: 
+                    asyncio.run_coroutine_threadsafe(
+                        self._play_next(e),
+                        self.bot.loop
+                    )
             )
         else:
             self.current = None
@@ -172,7 +176,10 @@ class Music(commands.Cog):
         self.text_channel = ctx.channel  # where to send finish notifications
 
         if not vc.is_playing():
-            self._play_next()
+            asyncio.run_coroutine_threadsafe(
+                self._play_next(None),
+                self.bot.loop
+            )
             # initial "Now playing" will be sent by _play_next
         else:
             await ctx.send(f"➕ Added to queue: **{song['title']}**")
@@ -195,7 +202,10 @@ class Music(commands.Cog):
         self.text_channel = interaction.channel  # type: ignore
 
         if not vc.is_playing():
-            self._play_next()
+            asyncio.run_coroutine_threadsafe(
+                self._play_next(None),
+                self.bot.loop
+            )
             # initial "Now playing" will be sent by _play_next
         else:
             await interaction.followup.send(f"➕ Added to queue: **{song['title']}**")
