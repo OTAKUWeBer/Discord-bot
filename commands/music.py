@@ -151,7 +151,7 @@ class Music(commands.Cog):
         embed.add_field(name="Resume", value=f"```{prefix}resume```", inline=False)
         embed.add_field(name="Stop", value=f"```{prefix}stop```", inline=False)
         embed.add_field(name="Queue", value=f"```{prefix}queue```", inline=False)
-        embed.add_field(name="Now", value=f"```{prefix}rn```", inline=False)
+        embed.add_field(name="Now", value=f"```{prefix}now_playing```", inline=False)
         await ctx.send(embed=embed)
 
     @app_commands.command(name="music_help", description="Show music commands")
@@ -163,7 +163,7 @@ class Music(commands.Cog):
         embed.add_field(name="/resume", value="Resume a paused song", inline=False)
         embed.add_field(name="/stop", value="Stop music and clear queue", inline=False)
         embed.add_field(name="/queue", value="Show current music queue", inline=False)
-        embed.add_field(name="/rn", value="Show current song progress", inline=False)
+        embed.add_field(name="/now_playing", value="Show current song progress", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # ─── PLAY ────────────────────────────────────────────────────────────────────
@@ -380,8 +380,8 @@ class Music(commands.Cog):
 
     # ─── NOW PLAYING PROGRESS ────────────────────────────────────────────────────
 
-    @commands.command(name="rn", help="Show current song progress")
-    async def rn(self, ctx: commands.Context):
+    @commands.command(name="now_playing", help="Show current song progress")
+    async def now_playing_command(self, ctx: commands.Context):
         if not self.current or 'start_time' not in self.current:
             embed = discord.Embed(
                 description="❌ No song is currently playing",
@@ -413,6 +413,40 @@ class Music(commands.Cog):
             inline=False
         )
         await ctx.send(embed=embed)
+
+    @app_commands.command(name="now_playing", description="Show current song progress")
+    async def now_playing_slash(self, interaction: Interaction):
+        if not self.current or 'start_time' not in self.current:
+            embed = discord.Embed(
+                description="❌ No song is currently playing",
+                color=discord.Color.red()
+            )
+            return await interaction.response.send_message(embed=embed)
+
+        now = self.bot.loop.time()
+        elapsed = now - self.current['start_time']
+        total = self.current.get('duration', 0)
+        elapsed = min(elapsed, total)
+
+        bar_len = 20
+        pos = int((elapsed / total) * bar_len) if total else 0
+        bar = '▬' * pos + '🔘' + '▬' * (bar_len - pos)
+
+        def fmt(sec: float) -> str:
+            m, s = divmod(int(sec), 60)
+            return f"{m:02d}:{s:02d}"
+
+        embed = discord.Embed(
+            title="🎶 Now Playing",
+            description=f"[{self.current['title']}]({self.current['webpage_url']})",
+            color=discord.Color.blue()
+        )
+        embed.add_field(
+            name="Progress",
+            value=f"{fmt(elapsed)} {bar} {fmt(total)}",
+            inline=False
+        )
+        await interaction.response.send_message(embed=embed)
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Music(bot))
