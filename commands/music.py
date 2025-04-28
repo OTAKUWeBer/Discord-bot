@@ -35,6 +35,7 @@ class Music(commands.Cog):
         self.queue: list[dict] = []
         self.current: dict | None = None
         self.voice_client: discord.VoiceClient | None = None
+        self.text_channel: discord.TextChannel | None = None
         self.auto_disconnect_task: asyncio.Task | None = None
 
     async def get_ytdl_info(self, query: str) -> dict:
@@ -55,8 +56,24 @@ class Music(commands.Cog):
         if error:
             print(f"Player error: {error}")
 
+        # announce the track that just finished
+        if self.current and self.text_channel:
+            asyncio.run_coroutine_threadsafe(
+                self.text_channel.send(f"✅ Finished playing: **{self.current['title']}**"),
+                self.bot.loop
+            )
+
+        # New song msg
         if self.queue:
             self.current = self.queue.pop(0)
+            self.current['start_time'] = self.bot.loop.time()
+
+            # new track
+            asyncio.run_coroutine_threadsafe(
+                self.text_channel.send(f"▶️ Now playing: **{self.current['title']}**"),
+                self.bot.loop
+            )
+
             source = discord.FFmpegPCMAudio(self.current['url'], **FFMPEG_OPTIONS)
             self.voice_client.play(
                 source,
@@ -118,9 +135,10 @@ class Music(commands.Cog):
         embed.add_field(name="Resume", value=f"```{prefix}resume```", inline=False)
         embed.add_field(name="Stop", value=f"```{prefix}stop```", inline=False)
         embed.add_field(name="Queue", value=f"```{prefix}queue```", inline=False)
+        embed.add_field(name="Now", value=f"```{prefix}rn```", inline=False)
         await ctx.send(embed=embed)
 
-    @app_commands.command(name="music_help", description="Show list of music commands")
+    @app_commands.command(name="music_help", description="Show music commands")
     async def music_slash(self, interaction: Interaction):
         embed = discord.Embed(title="Music Commands", color=discord.Color.blue())
         embed.add_field(name="/play", value="Play music from YouTube URL or search by song name", inline=False)
@@ -129,6 +147,7 @@ class Music(commands.Cog):
         embed.add_field(name="/resume", value="Resume a paused song", inline=False)
         embed.add_field(name="/stop", value="Stop music and clear queue", inline=False)
         embed.add_field(name="/queue", value="Show current music queue", inline=False)
+        embed.add_field(name="/rn", value="Show current song progress", inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     # ─── PLAY ────────────────────────────────────────────────────────────────────
@@ -143,12 +162,18 @@ class Music(commands.Cog):
         async with ctx.typing():
             info = await self.get_ytdl_info(query)
 
-        song = {'title': info['title'], 'url': info['url']}
+        song = {
+            'title':       info['title'],
+            'url':         info['url'],
+            'duration':    info.get('duration', 0),
+            'webpage_url': info.get('webpage_url', info.get('url'))
+        }
         self.queue.append(song)
+        self.text_channel = ctx.channel  # where to send finish notifications
 
         if not vc.is_playing():
             self._play_next()
-            await ctx.send(f"▶️ Now playing: **{song['title']}**")
+            # initial "Now playing" will be sent by _play_next
         else:
             await ctx.send(f"➕ Added to queue: **{song['title']}**")
 
@@ -160,12 +185,18 @@ class Music(commands.Cog):
 
         await interaction.response.defer(thinking=True)
         info = await self.get_ytdl_info(query)
-        song = {'title': info['title'], 'url': info['url']}
+        song = {
+            'title':       info['title'],
+            'url':         info['url'],
+            'duration':    info.get('duration', 0),
+            'webpage_url': info.get('webpage_url', info.get('url'))
+        }
         self.queue.append(song)
+        self.text_channel = interaction.channel  # type: ignore
 
         if not vc.is_playing():
             self._play_next()
-            await interaction.followup.send(f"▶️ Now playing: **{song['title']}**")
+            # initial "Now playing" will be sent by _play_next
         else:
             await interaction.followup.send(f"➕ Added to queue: **{song['title']}**")
 
@@ -274,6 +305,33 @@ class Music(commands.Cog):
         else:
             embed.add_field(name="Up Next", value="Queue is empty", inline=False)
         await interaction.response.send_message(embed=embed)
+
+    # ─── NOW PLAYING PROGRESS ────────────────────────────────────────────────────
+
+    @commands.command(name="rn", help="Show current song progress")
+    async def rn(self, ctx: commands.Context):
+        if not self.current or 'start_time' not in self.current:
+            return await ctx.send("❌ No song is currently playing.")
+
+        now = self.bot.loop.time()
+        elapsed = now - self.current['start_time']
+        total = self.current.get('duration', 0)
+        elapsed = min(elapsed, total)
+
+        bar_len = 20
+        pos = int((elapsed / total) * bar_len) if total else 0
+        bar = '▬' * pos + '🔘' + '▬' * (bar_len - pos)
+
+        def fmt(sec: float) -> str:
+            m, s = divmod(int(sec), 60)
+            return f"{m:02d}:{s:02d}"
+
+        title = self.current['title']
+        url   = self.current['webpage_url']
+        await ctx.send(
+            f"**[{title}]({url})**\n"
+            f"{fmt(elapsed)} {bar} {fmt(total)}"
+        )
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(Music(bot))
