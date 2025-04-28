@@ -33,7 +33,7 @@ class HelpCog(commands.Cog):
         )
         embed.add_field(
             name="Check music commands",
-            value=f"```{prefix}/music_help```",
+            value=f"```{prefix}music_help```",
             inline=False
         )
         embed.add_field(
