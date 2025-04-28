@@ -1,6 +1,6 @@
 import discord
 from discord.ext import commands
-from discord import app_commands, Interaction
+from discord import app_commands, Interaction, FFmpegOpusAudio
 import yt_dlp
 import asyncio
 import functools
@@ -70,6 +70,18 @@ class Music(commands.Cog):
             self.current = self.queue.pop(0)
             self.current['start_time'] = self.bot.loop.time()
 
+            # Start buffering via Opus before sending the embed
+            source = await FFmpegOpusAudio.from_probe(
+                self.current['url'],
+                before_options=FFMPEG_OPTIONS['before_options'],
+                options=FFMPEG_OPTIONS['options']
+            )
+            self.voice_client.play(
+                source,
+                after=lambda e: asyncio.run_coroutine_threadsafe(self._play_next(e), self.bot.loop)
+            )
+
+            # Now tell the channel what's playing
             embed = discord.Embed(
                 title="🎶 Now Playing",
                 description=f"[{self.current['title']}]({self.current['webpage_url']})",
@@ -77,18 +89,6 @@ class Music(commands.Cog):
             )
             await self.text_channel.send(embed=embed)
 
-            source = discord.FFmpegPCMAudio(
-                self.current['url'],
-                **FFMPEG_OPTIONS
-            )
-            self.voice_client.play(
-                source,
-                after=lambda e: 
-                    asyncio.run_coroutine_threadsafe(
-                        self._play_next(e),
-                        self.bot.loop
-                    )
-            )
         else:
             self.current = None
             if self.text_channel:
@@ -192,10 +192,7 @@ class Music(commands.Cog):
         )
 
         if not vc.is_playing():
-            asyncio.run_coroutine_threadsafe(
-                self._play_next(None),
-                self.bot.loop
-            )
+            asyncio.run_coroutine_threadsafe(self._play_next(None), self.bot.loop)
         else:
             await ctx.send(embed=embed)
 
@@ -222,10 +219,7 @@ class Music(commands.Cog):
         )
 
         if not vc.is_playing():
-            asyncio.run_coroutine_threadsafe(
-                self._play_next(None),
-                self.bot.loop
-            )
+            asyncio.run_coroutine_threadsafe(self._play_next(None), self.bot.loop)
             await interaction.followup.send(embed=embed)
         else:
             await interaction.followup.send(embed=embed)
