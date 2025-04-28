@@ -175,7 +175,15 @@ class Music(commands.Cog):
             return await ctx.send("You aren't in any voice channel!")
 
         async with ctx.typing():
-            info = await self.get_ytdl_info(query)
+            try:
+                info = await self.get_ytdl_info(query)
+            except Exception:
+                return await ctx.send(
+                    embed=discord.Embed(
+                        description="❌ Could not find or play anything for that link/search.",
+                        color=discord.Color.red()
+                    )
+                )
 
         song = {
             'title':       info['title'],
@@ -203,7 +211,16 @@ class Music(commands.Cog):
             return await interaction.response.send_message("You aren't in any voice channel!", ephemeral=True)
 
         await interaction.response.defer(thinking=True)
-        info = await self.get_ytdl_info(query)
+        try:
+            info = await self.get_ytdl_info(query)
+        except Exception:
+            return await interaction.followup.send(
+                embed=discord.Embed(
+                    description="❌ Could not find or play anything for that link/search.",
+                    color=discord.Color.red()
+                ),
+                ephemeral=True
+            )
         song = {
             'title':       info['title'],
             'url':         info['url'],
