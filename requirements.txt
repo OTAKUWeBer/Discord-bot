@@ -1,7 +1,6 @@
 aiohttp
 discord
 dotenv
-pokebase
 requests
 PyNaCl
 yt-dlp
