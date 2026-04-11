@@ -7,7 +7,7 @@ import csv
 
 def write_to_log_csv(action: str, user: str, user_id: int, moderator: str, moderator_id: int, reason: str = ""):
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC")
-    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     logs_dir = os.path.join(base_dir, "logs")
     os.makedirs(logs_dir, exist_ok=True)
     file_path = os.path.join(logs_dir, "moderation_logs.csv")
@@ -150,7 +150,7 @@ class Moderation(commands.Cog):
     @commands.has_permissions(kick_members=True)
     async def modlogs(self, ctx: commands.Context, user_id: int):
         """Check moderation history of a user by ID."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         file_path = os.path.join(base_dir, "logs", "moderation_logs.csv")
 
         if not os.path.exists(file_path):

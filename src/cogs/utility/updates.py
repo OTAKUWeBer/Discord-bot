@@ -10,7 +10,7 @@ class Update(commands.Cog):
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         self.data_dir = os.path.join(self.base_dir, "data")
         os.makedirs(self.data_dir, exist_ok=True)
         self.file_path = os.path.join(self.data_dir, "website_updates.json")
