@@ -1,27 +1,28 @@
-# 🛠️ Discord Bot Manager (Multi-Bot CLI)
+# 🛠️ Selective Discord Bot
 
-A Python-based terminal manager for handling multiple Discord bots with ease. Add, remove, and connect to bots stored securely in `.env` files, with support for custom command prefixes and modular cog loading.
+A Python-based Discord bot with a robust modular structure, designed for simple deployment and selective feature loading.
 
 ## ✨ Features
 
-- Add new Discord bots with token validation
-- Store each bot's credentials and settings in `bots/*.env`
-- Set a custom command prefix for each bot
-- Automatically load cogs from the `commands/` folder
-- Easy switching between bots via CLI
-- Graceful error handling and clean UI
-- Works on Linux, macOS, and Windows
+- **Selective Cog Loading**: Choose exactly which features to enable via the `.env` file.
+- **Robust Subclass Architecture**: Built around a custom `commands.Bot` subclass and modern async `setup_hook` initialization.
+- **Slash Command Syncing**: Automatically syncs slash commands on startup.
+- **Modular Cogs**: Commands are organized in the `cogs/` directory.
 
 ## 📁 Project Structure
 
 ```
 .
-├── bots/                 # Stores .env files for each bot
-    └── .env              # Stores token and prefix for a bot
-├── commands/             # Folder for your bot commands (cogs)
-│   ├── example.py
-│   └── ...
-├── main.py               # The main entry point for the bot manager
+├── src/
+│   ├── cogs/
+│   │   ├── fun/              # Game/misc commands (slap, joke)
+│   │   ├── moderation/       # Unified moderation cog (ban, kick, role, logs)
+│   │   ├── music/            # Unified music cog (play, queue, stop)
+│   │   └── utility/          # Utility cogs (help, updates)
+│   └── main.py               # The main entry point for the bot
+├── data/                     # JSON databases (e.g., website_updates.json)
+├── logs/                     # CSV Moderation logs
+├── .env.example              # Template for environment variables
 └── README.md
 ```
 
@@ -32,6 +33,8 @@ A Python-based terminal manager for handling multiple Discord bots with ease. Ad
   - `discord.py`
   - `python-dotenv`
   - `requests`
+  - `PyNaCl`
+  - `yt-dlp`
 
 Install all dependencies:
 
@@ -39,64 +42,29 @@ Install all dependencies:
 pip install -r requirements.txt
 ```
 
-Or manually:
-
-```bash
-pip install discord.py python-dotenv requests
-```
-
 ## 🚀 Usage
 
-Run the CLI:
+1. Copy `.env.example` to `.env`:
+   ```bash
+   copy .env.example .env
+   ```
+2. Fill in your `BOT_TOKEN` inside `.env`.
+3. Modify the `ENABLED_COGS` setting if you want to disable specific components. A blank value will attempt to recursively load all default cogs automatically.
+4. Run the bot:
 
 ```bash
 python main.py
 ```
 
-### Menu Options
+## ⚙️ Bot Configuration (.env)
 
-1. **Connect to a saved bot** — Launches a previously added bot using its `.env`.
-2. **Add a new bot** — Prompts for a bot token and prefix, validates it via the Discord API, then saves it to `bots/`.
-3. **Remove a bot** — Deletes an existing bot's `.env` file.
-4. **Quit** — Exits the manager.
-
-## ⚙️ Bot Commands
-
-Add Python files to the `commands/` directory to define your cogs. Each file should contain a `setup` function:
-
-```python
-from discord.ext import commands
-
-class Example(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-
-    @commands.command()
-    async def ping(self, ctx):
-        await ctx.send("Pong!")
-
-async def setup(bot):
-    await bot.add_cog(Example(bot))
+```env
+BOT_TOKEN=your-token
+COMMAND_PREFIX=!!
+ENABLED_COGS=fun.slap,fun.joke,utility.help,utility.info,utility.errors,moderation.moderation,music.music,utility.updates
+MOD_LOG_CHANNEL_ID=123456789012345678
 ```
-
-## 📌 Notes
-
-- Filenames are sanitized using the bot's name and ID to ensure safe storage.
-- Command prefix is unique per bot and saved alongside the token.
-- Slash commands are auto-synced when a bot goes online.
-- If a `.env` file already exists, you'll be asked before overwriting it.
-
-## 🧹 Clear Screen Compatibility
-
-The script will clear your terminal screen between operations:
-- `cls` for Windows
-- `clear` for Unix-like systems
 
 ## 🛡️ Security
 
-- Tokens are not logged or exposed.
-- All bot credentials are stored locally in the `bots/` folder as environment variables.
-
-## 🧑‍💻 Contributing
-
-Feel free to open issues or PRs for improvements.
+- All bot credentials are stored locally in the `.env` file and are never committed to version control.
