@@ -20,6 +20,7 @@ load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 TOKEN = os.getenv("BOT_TOKEN")
 PREFIX = os.getenv("COMMAND_PREFIX", "!!")
 ENABLED_COGS_ENV = os.getenv("ENABLED_COGS", "")
+DEV_GUILD_ID = os.getenv("DEV_GUILD_ID", "")
 
 class CustomBot(commands.Bot):
     def __init__(self):
@@ -59,16 +60,34 @@ class CustomBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Failed to load extension {extension_path}: {e}")
 
-        logger.info("Syncing application commands (slash commands)...")
-        await self.tree.sync()
-        logger.info("Application commands synced.")
+        # Slash command sync happens in on_ready where guilds are available
 
     async def on_ready(self):
         logger.info("="*40)
         logger.info(f"Logged in as: {self.user} (ID: {self.user.id})")
         logger.info(f"Connected to {len(self.guilds)} guilds")
+        for g in self.guilds:
+            logger.info(f"  → {g.name} (ID: {g.id})")
         logger.info(f"Listening with prefix: '{PREFIX}'")
         logger.info("="*40)
+
+        # Sync slash commands to guild(s) for instant availability
+        logger.info("Syncing application commands (slash commands)...")
+        target_guild_id = DEV_GUILD_ID
+
+        # Auto-detect if only connected to 1 guild and no DEV_GUILD_ID set
+        if not target_guild_id and len(self.guilds) == 1:
+            target_guild_id = str(self.guilds[0].id)
+            logger.info(f"Auto-detected single guild: {target_guild_id}")
+
+        if target_guild_id:
+            guild = discord.Object(id=int(target_guild_id))
+            self.tree.copy_global_to(guild=guild)
+            await self.tree.sync(guild=guild)
+            logger.info(f"Application commands synced to guild {target_guild_id} (instant).")
+        else:
+            await self.tree.sync()
+            logger.info("Application commands synced globally (may take up to 1 hour to propagate).")
 
 async def main():
     if not TOKEN:
